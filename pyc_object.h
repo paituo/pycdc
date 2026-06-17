@@ -76,8 +76,9 @@ public:
     PycRef<_Cast> cast() const
     {
         _Cast* result = dynamic_cast<_Cast*>(m_obj);
-        if (!result)
+        if (!result) {
             throw std::bad_cast();
+        }
         return result;
     }
 

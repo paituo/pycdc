@@ -48,6 +48,8 @@ public:
 
     bool isOpen() const override { return (m_buffer != 0); }
     bool atEof() const override { return (m_pos == m_size); }
+    int size() const { return m_size; }
+    int pos() const { return m_pos; }
 
     int getByte() override;
     void getBuffer(int bytes, void* buffer) override;

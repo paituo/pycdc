@@ -95,6 +95,9 @@ int main(int argc, char* argv[])
                     (mod.majorVer() < 3 && mod.isUnicode()) ? " Unicode" : "");
     try {
         decompyle(mod.code(), &mod, *pyc_output);
+    } catch (const std::bad_cast&) {
+        fprintf(stderr, "Error decompyling %s: bad_cast (type mismatch in AST node)\n", infile);
+        return 1;
     } catch (std::exception& ex) {
         fprintf(stderr, "Error decompyling %s: %s\n", infile, ex.what());
         return 1;

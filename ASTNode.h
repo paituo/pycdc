@@ -18,7 +18,7 @@ public:
         NODE_COMPREHENSION, NODE_LOADBUILDCLASS, NODE_AWAITABLE,
         NODE_FORMATTEDVALUE, NODE_JOINEDSTR, NODE_CONST_MAP,
         NODE_ANNOTATED_VAR, NODE_CHAINSTORE, NODE_TERNARY,
-        NODE_KW_NAMES_MAP,
+        NODE_KW_NAMES_MAP, NODE_UNPACK,
 
         // Empty node types
         NODE_LOCALS,
@@ -610,7 +610,7 @@ private:
 class ASTContainerBlock : public ASTBlock {
 public:
     ASTContainerBlock(int finally, int except = 0)
-        : ASTBlock(ASTBlock::BLK_CONTAINER, 0), m_finally(finally), m_except(except) { }
+        : ASTBlock(ASTBlock::BLK_CONTAINER, finally), m_finally(finally), m_except(except) { }
 
     bool hasFinally() const { return m_finally != 0; }
     bool hasExcept() const { return m_except != 0; }
@@ -627,7 +627,7 @@ private:
 class ASTWithBlock : public ASTBlock {
 public:
     ASTWithBlock(int end)
-        : ASTBlock(ASTBlock::BLK_WITH, end) { }
+        : ASTBlock(ASTBlock::BLK_WITH, end), m_async(false) { }
 
     PycRef<ASTNode> expr() const { return m_expr; }
     PycRef<ASTNode> var() const { return m_var; }
@@ -635,9 +635,13 @@ public:
     void setExpr(PycRef<ASTNode> expr) { m_expr = std::move(expr); init(); }
     void setVar(PycRef<ASTNode> var) { m_var = std::move(var); }
 
+    bool isAsync() const { return m_async; }
+    void setAsync(bool async) { m_async = async; }
+
 private:
     PycRef<ASTNode> m_expr;
     PycRef<ASTNode> m_var;      // optional value
+    bool m_async;
 };
 
 class ASTComprehension : public ASTNode {
@@ -755,6 +759,18 @@ private:
     PycRef<ASTNode> m_if_block; // contains "condition" and "negative"
     PycRef<ASTNode> m_if_expr;
     PycRef<ASTNode> m_else_expr;
+};
+
+class ASTUnpack : public ASTNode
+{
+public:
+    ASTUnpack(PycRef<ASTNode> value)
+        : ASTNode(NODE_UNPACK), m_value(std::move(value)) { }
+
+    PycRef<ASTNode> value() const noexcept { return m_value; }
+
+private:
+    PycRef<ASTNode> m_value;
 };
 
 #endif
