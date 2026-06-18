@@ -124,9 +124,14 @@ PycRef<PycString> PycCode::getCellVar(PycModule* mod, int idx) const
     if (mod->verCompare(3, 11) >= 0)
         return getLocal(idx);
 
-    return (idx >= m_cellVars->size())
-        ? m_freeVars->get(idx - m_cellVars->size()).cast<PycString>()
-        : m_cellVars->get(idx).cast<PycString>();
+    int cellSize = m_cellVars->size();
+    if (idx >= cellSize) {
+        if (idx - cellSize >= m_freeVars->size())
+            return new PycString();
+        return m_freeVars->get(idx - cellSize).cast<PycString>();
+    } else {
+        return m_cellVars->get(idx).cast<PycString>();
+    }
 }
 
 int _parse_varint(PycBuffer& data, int& pos) {

@@ -543,6 +543,7 @@ public:
     BlkType blktype() const { return m_blktype; }
     int end() const { return m_end; }
     const list_t& nodes() const { return m_nodes; }
+    list_t& nodes() { return m_nodes; }
     list_t::size_type size() const { return m_nodes.size(); }
     void removeFirst();
     void removeLast();
@@ -618,6 +619,7 @@ public:
     int except() const { return m_except; }
 
     void setExcept(int except) { m_except = except; }
+    void setFinally(int finally_val) { m_finally = finally_val; }
 
 private:
     int m_finally;

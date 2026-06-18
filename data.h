@@ -54,6 +54,14 @@ public:
     int getByte() override;
     void getBuffer(int bytes, void* buffer) override;
 
+    /* Advance internal read position by `bytes` without reading data.
+     * Clamps to m_size to prevent over-skip. */
+    void skipBytes(int bytes) {
+        m_pos += bytes;
+        if (m_pos > m_size)
+            m_pos = m_size;
+    }
+
 private:
     const unsigned char* m_buffer;
     int m_size, m_pos;
