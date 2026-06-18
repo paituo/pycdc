@@ -193,21 +193,35 @@ PycRef<ASTNode> BuildFromCode(PycRef<PycCode> code, PycModule* mod)
             blocks.pop();
             curblock = blocks.top();
 
-            if (curblock->blktype() == ASTBlock::BLK_CONTAINER
-                    && (curblock.cast<ASTContainerBlock>()->hasExcept()
-                        || mod->verCompare(3, 8) >= 0)) {
-                if (!stack_hist.empty()) {
-                    stack = stack_hist.top();
-                    stack_hist.pop();
+            if (curblock->blktype() == ASTBlock::BLK_CONTAINER) {
+                auto container = curblock.cast<ASTContainerBlock>();
+                if (container->hasExcept()
+                        || (mod->verCompare(3, 8) >= 0
+                            && mod->verCompare(3, 10) < 0)) {
+                    /* try/except reached the end of the try body.
+                     * Restore stack and create BLK_EXCEPT. */
+                    if (!stack_hist.empty()) {
+                        stack = stack_hist.top();
+                        stack_hist.pop();
+                    }
+                    curblock->append(prev.cast<ASTNode>());
+                    stack_hist.push(stack);
+                    PycRef<ASTBlock> except = new ASTCondBlock(ASTBlock::BLK_EXCEPT, 0, NULL, false);
+                    except->init();
+                    blocks.push(except);
+                    curblock = blocks.top();
+                } else if (mod->verCompare(3, 10) >= 0 && !container->hasExcept()) {
+                    /* Python 3.10+ try/finally (no DUP_TOP at handler entry):
+                     * create BLK_FINALLY to correctly handle cleanup code
+                     * like exc=None; del exc inside an except handler. */
+                    curblock->append(prev.cast<ASTNode>());
+                    PycRef<ASTBlock> final_block = new ASTBlock(ASTBlock::BLK_FINALLY, 0, true);
+                    blocks.push(final_block);
+                    curblock = blocks.top();
+                } else {
+                    blocks.push(prev);
+                    curblock = prev;
                 }
-
-                curblock->append(prev.cast<ASTNode>());
-                stack_hist.push(stack);
-
-                PycRef<ASTBlock> except = new ASTCondBlock(ASTBlock::BLK_EXCEPT, 0, NULL, false);
-                except->init();
-                blocks.push(except);
-                curblock = blocks.top();
             } else {
                 blocks.push(prev);
                 curblock = prev;
@@ -2723,6 +2737,39 @@ PycRef<ASTNode> BuildFromCode(PycRef<PycCode> code, PycModule* mod)
                 stack.push(four);
                 stack.push(three);
                 stack.push(two);
+            }
+            break;
+        case Pyc::ROT_N_A:
+            {
+                /* Python 3.10+: Rotate the top N items on the value stack.
+                 * Generalizes ROT_THREE (N=3) and ROT_FOUR (N=4).
+                 * old TOS goes to position 1 above deepest; all other
+                 * items shift up by 1. */
+                std::deque<PycRef<ASTNode>> items;
+                for (int i = 0; i < operand; i++) {
+                    items.push_back(stack.top());
+                    stack.pop();
+                }
+                /* items[0]=TOS, items[N-1]=deepest
+                 * Push order: items[0], items[N-1], ..., items[1] */
+                stack.push(items[0]);
+                for (int i = operand - 1; i >= 1; i--) {
+                    stack.push(items[i]);
+                }
+            }
+            break;
+        case Pyc::GET_LEN:
+            {
+                /* Python 3.10+: Replace TOS with len(TOS).  Used primarily
+                 * in structural pattern matching (match/case).  Pop the
+                 * original value and push it back as a pass-through to
+                 * maintain stack balance.  Full len() expression support
+                 * would require MATCH_* opcode support. */
+                if (!stack.empty()) {
+                    PycRef<ASTNode> val = stack.top();
+                    stack.pop();
+                    stack.push(val);
+                }
             }
             break;
         case Pyc::SET_LINENO_A:
